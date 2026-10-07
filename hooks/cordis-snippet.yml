@@ -1,0 +1,32 @@
+# 把 context-guard 的 hook 接进 WorkBuddy（说明）
+#
+# 原版（dsh-context-guard）为 DSH 组合提供了一个 `@deepseek-ai/dsh-hooks-claude-code`
+# 桥的接法。WorkBuddy 没有这个桥，所以本文件不能照搬，改为说明替代路径。
+#
+# 现状：WorkBuddy 默认**不会**自动执行本技能 hooks/ 下的脚本。
+# 因此"提醒"仍然靠模型按 SKILL.md 的「协议 A」自觉检查（这条一直可用）。
+#
+# 想让它变成"确定性注入"，有三条路，按可靠性排序：
+#
+#   1) WorkBuddy 的 hook 机制（如果当前版本支持）
+#      把你的 hooks 配置指向 hooks/hooks.example.json 里的命令，
+#      即 `node "<技能目录>/hooks/workbuddy-context-guard-hook.mjs"`。
+#      该脚本已按"stdin 读 JSON、stdout 写 JSON"的通用契约写好，事件名用
+#      SessionStart / UserPromptSubmit。若你的宿主用别的事件名，脚本对
+#      未知事件是安静通过的，不会报错。
+#
+#   2) 外部定时器（最省事，跨宿主通用）
+#      让系统计划任务每 N 分钟跑一次：
+#        node "<技能目录>/scripts/context-usage.mjs" --exit-code
+#      退出码 10=提醒线、20=临界线，据此弹通知即可。
+#      注意：它读的是"当前工作区最新会话"，多会话并行时会测到最近活动的那个。
+#
+#   3) 完全不用 hook
+#      需要时手动 `/context-guard`，或直接跑脚本。功能不打折，只是少了自动提醒。
+#
+# 无论选哪条，脚本契约都是：**绝不抛错、绝不阻塞、恒 exit 0**，
+# 不会因为测量失败而打断你的会话。
+#
+# 另外注意：WorkBuddy 的会话日志是明文 JSONL，位于
+#   ~/.workbuddy/projects/<项目键>/<会话id>.jsonl
+# 无需 zstd 解压（DSH 版需要 Node 22.15+，WorkBuddy 版不限）。
